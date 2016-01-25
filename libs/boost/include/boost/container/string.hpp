@@ -1,12 +1,34 @@
 //////////////////////////////////////////////////////////////////////////////
 //
-// (C) Copyright Ion Gaztanaga 2005-2013. Distributed under the Boost
+// (C) Copyright Ion Gaztanaga 2005-2012. Distributed under the Boost
 // Software License, Version 1.0. (See accompanying file
 // LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 // See http://www.boost.org/libs/container for documentation.
 //
 //////////////////////////////////////////////////////////////////////////////
+// Copyright (c) 1996,1997
+// Silicon Graphics Computer Systems, Inc.
+//
+// Permission to use, copy, modify, distribute and sell this software
+// and its documentation for any purpose is hereby granted without fee,
+// provided that the above copyright notice appear in all copies and
+// that both that copyright notice and this permission notice appear
+// in supporting documentation.  Silicon Graphics makes no
+// representations about the suitability of this software for any
+// purpose.  It is provided "as is" without express or implied warranty.
+//
+//
+// Copyright (c) 1994
+// Hewlett-Packard Company
+//
+// Permission to use, copy, modify, distribute and sell this software
+// and its documentation for any purpose is hereby granted without fee,
+// provided that the above copyright notice appear in all copies and
+// that both that copyright notice and this permission notice appear
+// in supporting documentation.  Hewlett-Packard Company makes no
+// representations about the suitability of this software for any
+// purpose.  It is provided "as is" without express or implied warranty.
 
 #ifndef BOOST_CONTAINER_STRING_HPP
 #define BOOST_CONTAINER_STRING_HPP
@@ -16,7 +38,6 @@
 
 #include <boost/container/detail/workaround.hpp>
 #include <boost/container/container_fwd.hpp>
-#include <boost/container/throw_exception.hpp>
 #include <boost/container/detail/utilities.hpp>
 #include <boost/container/detail/iterators.hpp>
 #include <boost/container/detail/algorithms.hpp>
@@ -33,7 +54,8 @@
 
 #include <functional>
 #include <string>
-#include <utility>
+#include <stdexcept>     
+#include <utility> 
 #include <iterator>
 #include <memory>
 #include <algorithm>
@@ -52,10 +74,10 @@
 namespace boost {
 namespace container {
 
-#ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+/// @cond
 namespace container_detail {
 // ------------------------------------------------------------
-// Class basic_string_base.
+// Class basic_string_base. 
 
 // basic_string_base is a helper class that makes it it easier to write
 // an exception-safe version of basic_string.  The constructor allocates,
@@ -88,20 +110,20 @@ class basic_string_base
 
    basic_string_base(const allocator_type& a, size_type n)
       : members_(a)
-   {
+   { 
       this->init();
       this->allocate_initial_block(n);
    }
 
    basic_string_base(BOOST_RV_REF(basic_string_base) b)
       :  members_(boost::move(b.alloc()))
-   {
+   { 
       this->init();
       this->swap_data(b);
    }
 
    ~basic_string_base()
-   {
+   { 
       if(!this->is_short()){
          this->deallocate_block();
          this->is_short(true);
@@ -149,7 +171,7 @@ class basic_string_base
 
    //This type has the same alignment and size as long_t but it's POD
    //so, unlike long_t, it can be placed in a union
-
+  
    typedef typename boost::aligned_storage< sizeof(long_t),
        container_detail::alignment_of<long_t>::value>::type   long_raw_t;
 
@@ -268,15 +290,10 @@ class basic_string_base
    }
 
    size_type next_capacity(size_type additional_objects) const
-   {
-      return next_capacity_calculator
-         <size_type, NextCapacityDouble /*NextCapacity60Percent*/>::
-            get( allocator_traits_type::max_size(this->alloc())
-               , this->priv_storage(), additional_objects );
-   }
+   {  return get_next_capacity(allocator_traits_type::max_size(this->alloc()), this->priv_storage(), additional_objects);  }
 
    void deallocate(pointer p, size_type n)
-   {
+   { 
       if (p && (n > InternalBufferChars))
          this->alloc().deallocate(p, n);
    }
@@ -318,16 +335,22 @@ class basic_string_base
             this->priv_storage(new_cap);
          }
       }
-      else{
-         throw_length_error("basic_string::allocate_initial_block max_size() exceeded");
-      }
+      else
+         throw_length_error();
    }
 
    void deallocate_block()
    {  this->deallocate(this->priv_addr(), this->priv_storage());  }
-
+     
    size_type max_size() const
    {  return allocator_traits_type::max_size(this->alloc()) - 1; }
+
+   // Helper functions for exception handling.
+   void throw_length_error() const
+   {  throw(std::length_error("basic_string"));  }
+
+   void throw_out_of_range() const
+   {  throw(std::out_of_range("basic_string"));  }
 
    protected:
    size_type priv_capacity() const
@@ -368,13 +391,13 @@ class basic_string_base
    {  return this->members_.m_repr.long_repr().storage;  }
 
    void priv_storage(size_type storage)
-   {
+   { 
       if(!this->is_short())
          this->priv_long_storage(storage);
    }
 
    void priv_long_storage(size_type storage)
-   {
+   { 
       this->members_.m_repr.long_repr().storage = storage;
    }
 
@@ -388,7 +411,7 @@ class basic_string_base
    {  return this->members_.m_repr.long_repr().length;  }
 
    void priv_size(size_type sz)
-   {
+   { 
       if(this->is_short())
          this->priv_short_size(sz);
       else
@@ -396,12 +419,12 @@ class basic_string_base
    }
 
    void priv_short_size(size_type sz)
-   {
+   { 
       this->members_.m_repr.s.h.length = (unsigned char)sz;
    }
 
    void priv_long_size(size_type sz)
-   {
+   { 
       this->members_.m_repr.long_repr().length = sz;
    }
 
@@ -409,7 +432,7 @@ class basic_string_base
    {
       if(this->is_short()){
          if(other.is_short()){
-            std::swap(this->members_.m_repr, other.members_.m_repr);
+            container_detail::do_swap(this->members_.m_repr, other.members_.m_repr);
          }
          else{
             short_t short_backup(this->members_.m_repr.short_repr());
@@ -430,7 +453,7 @@ class basic_string_base
             this->members_.m_repr.short_repr() = short_backup;
          }
          else{
-            boost::container::swap_dispatch(this->members_.m_repr.long_repr(), other.members_.m_repr.long_repr());
+            container_detail::do_swap(this->members_.m_repr.long_repr(), other.members_.m_repr.long_repr());
          }
       }
    }
@@ -438,7 +461,7 @@ class basic_string_base
 
 }  //namespace container_detail {
 
-#endif   //#ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+/// @endcond
 
 //! The basic_string class represents a Sequence of characters. It contains all the
 //! usual operations of a Sequence, and, additionally, it contains standard string
@@ -468,10 +491,6 @@ class basic_string_base
 //! end(), rbegin(), rend(), operator[], c_str(), and data() do not invalidate iterators.
 //! In this implementation, iterators are only invalidated by member functions that
 //! explicitly change the string's contents.
-//!
-//! \tparam CharT The type of character it contains.
-//! \tparam Traits The Character Traits type, which encapsulates basic character operations
-//! \tparam Allocator The allocator, used for internal memory management.
 #ifdef BOOST_CONTAINER_DOXYGEN_INVOKED
 template <class CharT, class Traits = std::char_traits<CharT>, class Allocator = std::allocator<CharT> >
 #else
@@ -480,7 +499,7 @@ template <class CharT, class Traits, class Allocator>
 class basic_string
    :  private container_detail::basic_string_base<Allocator>
 {
-   #ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+   /// @cond
    private:
    typedef allocator_traits<Allocator> allocator_traits_type;
    BOOST_COPYABLE_AND_MOVABLE(basic_string)
@@ -492,22 +511,19 @@ class basic_string
 
    template <class Tr>
    struct Eq_traits
+      : public std::binary_function<typename Tr::char_type,
+                                    typename Tr::char_type,
+                                    bool>
    {
-      //Compatibility with std::binary_function
-	   typedef typename Tr::char_type   first_argument_type;
-	   typedef typename Tr::char_type   second_argument_type;
-	   typedef bool   result_type;
-
-      bool operator()(const first_argument_type& x, const second_argument_type& y) const
+      bool operator()(const typename Tr::char_type& x,
+                      const typename Tr::char_type& y) const
          { return Tr::eq(x, y); }
    };
 
    template <class Tr>
    struct Not_within_traits
+      : public std::unary_function<typename Tr::char_type, bool>
    {
-	   typedef typename Tr::char_type   argument_type;
-	   typedef bool                     result_type;
-
       typedef const typename Tr::char_type* Pointer;
       const Pointer m_first;
       const Pointer m_last;
@@ -521,7 +537,7 @@ class basic_string
                         std::bind1st(Eq_traits<Tr>(), x)) == m_last;
       }
    };
-   #endif   //#ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+   /// @endcond
 
    public:
    //////////////////////////////////////////////
@@ -545,14 +561,14 @@ class basic_string
    typedef BOOST_CONTAINER_IMPDEF(std::reverse_iterator<const_iterator>)               const_reverse_iterator;
    static const size_type npos = size_type(-1);
 
-   #ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+   /// @cond
    private:
    typedef constant_iterator<CharT, difference_type> cvalue_iterator;
    typedef typename base_t::allocator_v1  allocator_v1;
    typedef typename base_t::allocator_v2  allocator_v2;
    typedef typename base_t::alloc_version  alloc_version;
    typedef ::boost::intrusive::pointer_traits<pointer> pointer_traits;
-   #endif   //#ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+   /// @endcond
 
    public:                         // Constructor, destructor, assignment.
    //////////////////////////////////////////////
@@ -560,7 +576,7 @@ class basic_string
    //          construct/copy/destroy
    //
    //////////////////////////////////////////////
-   #ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+   /// @cond
    struct reserve_t {};
 
    basic_string(reserve_t, size_type n,
@@ -571,7 +587,7 @@ class basic_string
               , n + 1)
    { this->priv_terminate_string(); }
 
-   #endif   //#ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+   /// @endcond
 
    //! <b>Effects</b>: Default constructs a basic_string.
    //!
@@ -592,7 +608,7 @@ class basic_string
    //!
    //! <b>Postcondition</b>: x == *this.
    //!
-   //! <b>Throws</b>: If allocator_type's default constructor or allocation throws.
+   //! <b>Throws</b>: If allocator_type's default constructor throws.
    basic_string(const basic_string& s)
       :  base_t(allocator_traits_type::select_on_container_copy_construction(s.alloc()))
    {
@@ -647,7 +663,7 @@ class basic_string
    {
       this->priv_terminate_string();
       if (pos > s.size())
-         throw_out_of_range("basic_string::basic_string out of range position");
+         this->throw_out_of_range();
       else
          this->assign
             (s.begin() + pos, s.begin() + pos + container_detail::min_value(n, s.size() - pos));
@@ -681,15 +697,6 @@ class basic_string
    }
 
    //! <b>Effects</b>: Constructs a basic_string taking the allocator as parameter,
-   //!   and is initialized by n default-initialized characters.
-   basic_string(size_type n, default_init_t, const allocator_type& a = allocator_type())
-      : base_t(a, n + 1)
-   {
-      this->priv_size(n);
-      this->priv_terminate_string();
-   }
-
-   //! <b>Effects</b>: Constructs a basic_string taking the allocator as parameter,
    //!   and a range of iterators.
    template <class InputIterator>
    basic_string(InputIterator f, InputIterator l, const allocator_type& a = allocator_type())
@@ -706,7 +713,7 @@ class basic_string
    //! <b>Complexity</b>: Constant.
    ~basic_string() BOOST_CONTAINER_NOEXCEPT
    {}
-
+     
    //! <b>Effects</b>: Copy constructs a string.
    //!
    //! <b>Postcondition</b>: x == *this.
@@ -733,38 +740,30 @@ class basic_string
       return *this;
    }
 
-   //! <b>Effects</b>: Move constructor. Moves x's resources to *this.
+   //! <b>Effects</b>: Move constructor. Moves mx's resources to *this.
    //!
-   //! <b>Throws</b>: If allocator_traits_type::propagate_on_container_move_assignment
-   //!   is false and allocation throws
+   //! <b>Throws</b>: If allocator_type's copy constructor throws.
    //!
-   //! <b>Complexity</b>: Constant if allocator_traits_type::
-   //!   propagate_on_container_move_assignment is true or
-   //!   this->get>allocator() == x.get_allocator(). Linear otherwise.
-   basic_string& operator=(BOOST_RV_REF(basic_string) x)
-      BOOST_CONTAINER_NOEXCEPT_IF(allocator_traits_type::propagate_on_container_move_assignment::value)
+   //! <b>Complexity</b>: Constant.
+   basic_string& operator=(BOOST_RV_REF(basic_string) x) BOOST_CONTAINER_NOEXCEPT
    {
-      //for move constructor, no aliasing (&x != this) is assummed.
-      BOOST_ASSERT(this != &x);
-      allocator_type &this_alloc = this->alloc();
-      allocator_type &x_alloc    = x.alloc();
-      const bool propagate_alloc = allocator_traits_type::
-            propagate_on_container_move_assignment::value;
-      container_detail::bool_<propagate_alloc> flag;
-      const bool allocators_equal = this_alloc == x_alloc; (void)allocators_equal;
-      //Resources can be transferred if both allocators are
-      //going to be equal after this function (either propagated or already equal)
-      if(propagate_alloc || allocators_equal){
-         //Destroy objects but retain memory in case x reuses it in the future
-         this->clear();
-         //Move allocator if needed
-         container_detail::move_alloc(this_alloc, x_alloc, flag);
-         //Nothrow swap
-         this->swap_data(x);
-      }
-      //Else do a one by one move
-      else{
-         this->assign( x.begin(), x.end());
+      if (&x != this){
+         allocator_type &this_alloc = this->alloc();
+         allocator_type &x_alloc    = x.alloc();
+         //If allocators are equal we can just swap pointers
+         if(this_alloc == x_alloc){
+            //Destroy objects but retain memory in case x reuses it in the future
+            this->clear();
+            this->swap_data(x);
+            //Move allocator if needed
+            container_detail::bool_<allocator_traits_type::
+               propagate_on_container_move_assignment::value> flag;
+            container_detail::move_alloc(this_alloc, x_alloc, flag);
+         }
+         //If unequal allocators, then do a one by one move
+         else{
+            this->assign( x.begin(), x.end());
+         }
       }
       return *this;
    }
@@ -966,33 +965,13 @@ class basic_string
    }
 
    //! <b>Effects</b>: Inserts or erases elements at the end such that
-   //!   the size becomes n. New elements are value initialized.
+   //!   the size becomes n. New elements are default constructed.
    //!
    //! <b>Throws</b>: If memory allocation throws
    //!
    //! <b>Complexity</b>: Linear to the difference between size() and new_size.
    void resize(size_type n)
    { resize(n, CharT()); }
-
-
-   //! <b>Effects</b>: Inserts or erases elements at the end such that
-   //!   the size becomes n. New elements are uninitialized.
-   //!
-   //! <b>Throws</b>: If memory allocation throws
-   //!
-   //! <b>Complexity</b>: Linear to the difference between size() and new_size.
-   //!
-   //! <b>Note</b>: Non-standard extension
-   void resize(size_type n, default_init_t)
-   {
-      if (n <= this->size())
-         this->erase(this->begin() + n, this->end());
-      else{
-         this->priv_reserve(n, false);
-         this->priv_size(n);
-         this->priv_terminate_string();
-      }
-   }
 
    //! <b>Effects</b>: Number of elements for which memory has been allocated.
    //!   capacity() is always greater than or equal to size().
@@ -1010,7 +989,29 @@ class basic_string
    //!
    //! <b>Throws</b>: If memory allocation allocation throws
    void reserve(size_type res_arg)
-   {  this->priv_reserve(res_arg);  }
+   {
+      if (res_arg > this->max_size()){
+         this->throw_length_error();
+      }
+
+      if (this->capacity() < res_arg){
+         size_type n = container_detail::max_value(res_arg, this->size()) + 1;
+         size_type new_cap = this->next_capacity(n);
+         pointer new_start = this->allocation_command
+            (allocate_new, n, new_cap, new_cap).first;
+         size_type new_length = 0;
+
+         const pointer addr = this->priv_addr();
+         new_length += priv_uninitialized_copy
+            (addr, addr + this->priv_size(), new_start);
+         this->priv_construct_null(new_start + new_length);
+         this->deallocate_block();
+         this->is_short(false);
+         this->priv_long_addr(new_start);
+         this->priv_long_size(new_length);
+         this->priv_storage(new_cap);
+      }
+   }
 
    //! <b>Effects</b>: Tries to deallocate the excess of memory created
    //!   with previous allocations. The size of the string is unchanged
@@ -1082,7 +1083,7 @@ class basic_string
    reference at(size_type n)
    {
       if (n >= this->size())
-         throw_out_of_range("basic_string::at invalid subscript");
+         this->throw_out_of_range();
       return *(this->priv_addr() + n);
    }
 
@@ -1096,7 +1097,7 @@ class basic_string
    //! <b>Complexity</b>: Constant.
    const_reference at(size_type n) const {
       if (n >= this->size())
-         throw_out_of_range("basic_string::at invalid subscript");
+         this->throw_out_of_range();
       return *(this->priv_addr() + n);
    }
 
@@ -1141,7 +1142,7 @@ class basic_string
    basic_string& append(const basic_string& s, size_type pos, size_type n)
    {
       if (pos > s.size())
-         throw_out_of_range("basic_string::append out of range position");
+      this->throw_out_of_range();
       return this->append(s.begin() + pos,
                           s.begin() + pos + container_detail::min_value(n, s.size() - pos));
    }
@@ -1225,7 +1226,7 @@ class basic_string
    basic_string& assign(const basic_string& s, size_type pos, size_type n)
    {
       if (pos > s.size())
-         throw_out_of_range("basic_string::assign out of range position");
+      this->throw_out_of_range();
       return this->assign(s.begin() + pos,
                           s.begin() + pos + container_detail::min_value(n, s.size() - pos));
    }
@@ -1236,7 +1237,7 @@ class basic_string
    //! length n whose elements are a copy of those pointed to by s.
    //!
    //! <b>Throws</b>: If memory allocation throws or length_error if n > max_size().
-   //!
+   //!   
    //! <b>Returns</b>: *this
    basic_string& assign(const CharT* s, size_type n)
    {  return this->assign(s, s + n);   }
@@ -1254,20 +1255,6 @@ class basic_string
    //! <b>Returns</b>: *this
    basic_string& assign(size_type n, CharT c)
    {  return this->assign(cvalue_iterator(c, n), cvalue_iterator()); }
-
-   //! <b>Effects</b>: Equivalent to assign(basic_string(first, last)).
- 	//!
- 	//! <b>Returns</b>: *this
- 	basic_string& assign(const CharT* first, const CharT* last)
- 	{
- 	   size_type n = static_cast<size_type>(last - first);
- 	   this->reserve(n);
- 	   CharT* ptr = container_detail::to_raw_pointer(this->priv_addr());
- 	   Traits::copy(ptr, first, n);
- 	   this->priv_construct_null(ptr + n);
- 	   this->priv_size(n);
- 	   return *this;
- 	}
 
    //! <b>Effects</b>: Equivalent to assign(basic_string(first, last)).
    //!
@@ -1309,9 +1296,9 @@ class basic_string
    {
       const size_type sz = this->size();
       if (pos > sz)
-         throw_out_of_range("basic_string::insert out of range position");
+         this->throw_out_of_range();
       if (sz > this->max_size() - s.size())
-         throw_length_error("basic_string::insert max_size() exceeded");
+         this->throw_length_error();
       this->insert(this->priv_addr() + pos, s.begin(), s.end());
       return *this;
    }
@@ -1329,10 +1316,10 @@ class basic_string
       const size_type sz = this->size();
       const size_type str_size = s.size();
       if (pos1 > sz || pos2 > str_size)
-         throw_out_of_range("basic_string::insert out of range position");
+         this->throw_out_of_range();
       size_type len = container_detail::min_value(n, str_size - pos2);
       if (sz > this->max_size() - len)
-         throw_length_error("basic_string::insert max_size() exceeded");
+         this->throw_length_error();
       const CharT *beg_ptr = container_detail::to_raw_pointer(s.begin()) + pos2;
       const CharT *end_ptr = beg_ptr + len;
       this->insert(this->priv_addr() + pos1, beg_ptr, end_ptr);
@@ -1353,9 +1340,9 @@ class basic_string
    basic_string& insert(size_type pos, const CharT* s, size_type n)
    {
       if (pos > this->size())
-         throw_out_of_range("basic_string::insert out of range position");
+         this->throw_out_of_range();
       if (this->size() > this->max_size() - n)
-         throw_length_error("basic_string::insert max_size() exceeded");
+         this->throw_length_error();
       this->insert(this->priv_addr() + pos, s, s + n);
       return *this;
    }
@@ -1371,10 +1358,10 @@ class basic_string
    basic_string& insert(size_type pos, const CharT* s)
    {
       if (pos > this->size())
-         throw_out_of_range("basic_string::insert out of range position");
+         this->throw_out_of_range();
       size_type len = Traits::length(s);
       if (this->size() > this->max_size() - len)
-         throw_length_error("basic_string::insert max_size() exceeded");
+         this->throw_length_error();
       this->insert(this->priv_addr() + pos, s, s + len);
       return *this;
    }
@@ -1388,9 +1375,9 @@ class basic_string
    basic_string& insert(size_type pos, size_type n, CharT c)
    {
       if (pos > this->size())
-         throw_out_of_range("basic_string::insert out of range position");
+         this->throw_out_of_range();
       if (this->size() > this->max_size() - n)
-         throw_length_error("basic_string::insert max_size() exceeded");
+         this->throw_length_error();
       this->insert(const_iterator(this->priv_addr() + pos), n, c);
       return *this;
    }
@@ -1435,7 +1422,7 @@ class basic_string
       for ( ; first != last; ++first, ++p) {
          p = this->insert(p, *first);
       }
-      return this->begin() + n_pos;
+      return this->begin() + n_pos; 
    }
 
    #if !defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
@@ -1459,7 +1446,7 @@ class basic_string
 
          //Check if we have enough capacity
          if (remaining >= n){
-            enough_capacity = true;
+            enough_capacity = true;           
          }
          else {
             //Otherwise expand current buffer or allocate new storage
@@ -1564,11 +1551,11 @@ class basic_string
    basic_string& erase(size_type pos = 0, size_type n = npos)
    {
       if (pos > this->size())
-         throw_out_of_range("basic_string::erase out of range position");
+         this->throw_out_of_range();
       const pointer addr = this->priv_addr();
       erase(addr + pos, addr + pos + container_detail::min_value(n, this->size() - pos));
       return *this;
-   }
+   } 
 
    //! <b>Effects</b>: Removes the character referred to by p.
    //!
@@ -1646,10 +1633,10 @@ class basic_string
    basic_string& replace(size_type pos1, size_type n1, const basic_string& str)
    {
       if (pos1 > this->size())
-         throw_out_of_range("basic_string::replace out of range position");
+         this->throw_out_of_range();
       const size_type len = container_detail::min_value(n1, this->size() - pos1);
       if (this->size() - len >= this->max_size() - str.size())
-         throw_length_error("basic_string::replace max_size() exceeded");
+         this->throw_length_error();
       const pointer addr = this->priv_addr();
       return this->replace( const_iterator(addr + pos1)
                           , const_iterator(addr + pos1 + len)
@@ -1669,11 +1656,11 @@ class basic_string
                          const basic_string& str, size_type pos2, size_type n2)
    {
       if (pos1 > this->size() || pos2 > str.size())
-         throw_out_of_range("basic_string::replace out of range position");
+         this->throw_out_of_range();
       const size_type len1 = container_detail::min_value(n1, this->size() - pos1);
       const size_type len2 = container_detail::min_value(n2, str.size() - pos2);
       if (this->size() - len1 >= this->max_size() - len2)
-         throw_length_error("basic_string::replace max_size() exceeded");
+         this->throw_length_error();
       const pointer addr    = this->priv_addr();
       const pointer straddr = str.priv_addr();
       return this->replace(addr + pos1, addr + pos1 + len1,
@@ -1697,10 +1684,10 @@ class basic_string
    basic_string& replace(size_type pos1, size_type n1, const CharT* s, size_type n2)
    {
       if (pos1 > this->size())
-         throw_out_of_range("basic_string::replace out of range position");
+         this->throw_out_of_range();
       const size_type len = container_detail::min_value(n1, this->size() - pos1);
       if (n2 > this->max_size() || size() - len >= this->max_size() - n2)
-         throw_length_error("basic_string::replace max_size() exceeded");
+         this->throw_length_error();
       const pointer addr    = this->priv_addr();
       return this->replace(addr + pos1, addr + pos1 + len, s, s + n2);
    }
@@ -1722,11 +1709,11 @@ class basic_string
    basic_string& replace(size_type pos, size_type n1, const CharT* s)
    {
       if (pos > this->size())
-         throw_out_of_range("basic_string::replace out of range position");
+         this->throw_out_of_range();
       const size_type len = container_detail::min_value(n1, this->size() - pos);
       const size_type n2 = Traits::length(s);
       if (n2 > this->max_size() || this->size() - len >= this->max_size() - n2)
-         throw_length_error("basic_string::replace max_size() exceeded");
+         this->throw_length_error();
       const pointer addr    = this->priv_addr();
       return this->replace(addr + pos, addr + pos + len,
                      s, s + Traits::length(s));
@@ -1743,10 +1730,10 @@ class basic_string
    basic_string& replace(size_type pos1, size_type n1, size_type n2, CharT c)
    {
       if (pos1 > this->size())
-         throw_out_of_range("basic_string::replace out of range position");
+         this->throw_out_of_range();
       const size_type len = container_detail::min_value(n1, this->size() - pos1);
       if (n2 > this->max_size() || this->size() - len >= this->max_size() - n2)
-         throw_length_error("basic_string::replace max_size() exceeded");
+         this->throw_length_error();
       const pointer addr    = this->priv_addr();
       return this->replace(addr + pos1, addr + pos1 + len, n2, c);
    }
@@ -1871,7 +1858,7 @@ class basic_string
    size_type copy(CharT* s, size_type n, size_type pos = 0) const
    {
       if (pos > this->size())
-         throw_out_of_range("basic_string::copy out of range position");
+         this->throw_out_of_range();
       const size_type len = container_detail::min_value(n, this->size() - pos);
       Traits::copy(s, container_detail::to_raw_pointer(this->priv_addr() + pos), len);
       return len;
@@ -2243,7 +2230,7 @@ class basic_string
    basic_string substr(size_type pos = 0, size_type n = npos) const
    {
       if (pos > this->size())
-         throw_out_of_range("basic_string::substr out of range position");
+         this->throw_out_of_range();
       const pointer addr = this->priv_addr();
       return basic_string(addr + pos,
                           addr + pos + container_detail::min_value(n, size() - pos), this->alloc());
@@ -2276,7 +2263,7 @@ class basic_string
    int compare(size_type pos1, size_type n1, const basic_string& str) const
    {
       if (pos1 > this->size())
-         throw_out_of_range("basic_string::compare out of range position");
+         this->throw_out_of_range();
       const pointer addr    = this->priv_addr();
       const pointer str_addr = str.priv_addr();
       return s_compare(addr + pos1,
@@ -2295,7 +2282,7 @@ class basic_string
    int compare(size_type pos1, size_type n1, const basic_string& str, size_type pos2, size_type n2) const
    {
       if (pos1 > this->size() || pos2 > str.size())
-         throw_out_of_range("basic_string::compare out of range position");
+         this->throw_out_of_range();
       const pointer addr     = this->priv_addr();
       const pointer str_addr = str.priv_addr();
       return s_compare(addr + pos1,
@@ -2322,7 +2309,7 @@ class basic_string
    int compare(size_type pos1, size_type n1, const CharT* s, size_type n2) const
    {
       if (pos1 > this->size())
-         throw_out_of_range("basic_string::compare out of range position");
+         this->throw_out_of_range();
       const pointer addr = this->priv_addr();
       return s_compare( addr + pos1,
                         addr + pos1 + container_detail::min_value(n1, this->size() - pos1),
@@ -2337,35 +2324,8 @@ class basic_string
    int compare(size_type pos1, size_type n1, const CharT* s) const
    {  return this->compare(pos1, n1, s, Traits::length(s)); }
 
-   #ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+   /// @cond
    private:
-   void priv_reserve(size_type res_arg, const bool null_terminate = true)
-   {
-      if (res_arg > this->max_size()){
-         throw_length_error("basic_string::reserve max_size() exceeded");
-      }
-
-      if (this->capacity() < res_arg){
-         size_type n = container_detail::max_value(res_arg, this->size()) + 1;
-         size_type new_cap = this->next_capacity(n);
-         pointer new_start = this->allocation_command
-            (allocate_new, n, new_cap, new_cap).first;
-         size_type new_length = 0;
-
-         const pointer addr = this->priv_addr();
-         new_length += priv_uninitialized_copy
-            (addr, addr + this->priv_size(), new_start);
-         if(null_terminate){
-            this->priv_construct_null(new_start + new_length);
-         }
-         this->deallocate_block();
-         this->is_short(false);
-         this->priv_long_addr(new_start);
-         this->priv_long_size(new_length);
-         this->priv_storage(new_cap);
-      }
-   }
-
    static int s_compare(const_pointer f1, const_pointer l1,
                         const_pointer f2, const_pointer l2)
    {
@@ -2499,10 +2459,8 @@ class basic_string
       return this->priv_replace(first, last, f, l, Category());
    }
 
-   #endif   //#ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+   /// @endcond
 };
-
-#ifdef BOOST_CONTAINER_DOXYGEN_INVOKED
 
 //!Typedef for a basic_string of
 //!narrow characters
@@ -2520,14 +2478,12 @@ typedef basic_string
    ,std::allocator<wchar_t> >
 wstring;
 
-#endif
-
 // ------------------------------------------------------------
 // Non-member functions.
 
 // Operator+
 
-template <class CharT, class Traits, class Allocator> inline
+template <class CharT, class Traits, class Allocator> inline 
    basic_string<CharT,Traits,Allocator>
    operator+(const basic_string<CharT,Traits,Allocator>& x
             ,const basic_string<CharT,Traits,Allocator>& y)
@@ -2576,7 +2532,7 @@ template <class CharT, class Traits, class Allocator> inline
    return y;
 }
 
-template <class CharT, class Traits, class Allocator> inline
+template <class CharT, class Traits, class Allocator> inline 
    basic_string<CharT,Traits,Allocator> operator+
       (basic_string<CharT,Traits,Allocator> x, const CharT* s)
 {
@@ -2592,7 +2548,7 @@ template <class CharT, class Traits, class Allocator> inline
    return y;
 }
 
-template <class CharT, class Traits, class Allocator> inline
+template <class CharT, class Traits, class Allocator> inline 
    basic_string<CharT,Traits,Allocator> operator+
       (basic_string<CharT,Traits,Allocator> x, const CharT c)
 {
@@ -2735,8 +2691,8 @@ template <class CharT, class Traits, class Allocator>
 inline void swap(basic_string<CharT,Traits,Allocator>& x, basic_string<CharT,Traits,Allocator>& y)
 {  x.swap(y);  }
 
-#ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
-// I/O.
+/// @cond
+// I/O. 
 namespace container_detail {
 
 template <class CharT, class Traits>
@@ -2755,7 +2711,7 @@ string_fill(std::basic_ostream<CharT, Traits>& os,
 }
 
 }  //namespace container_detail {
-#endif   //#ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+/// @endcond
 
 template <class CharT, class Traits, class Allocator>
 std::basic_ostream<CharT, Traits>&
@@ -2774,9 +2730,9 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const basic_string<CharT,Trait
 
       if (w != 0 && n < w)
          pad_len = w - n;
-
+      
       if (!left)
-         ok = container_detail::string_fill(os, buf, pad_len);
+         ok = container_detail::string_fill(os, buf, pad_len);   
 
       ok = ok &&
             buf->sputn(s.data(), std::streamsize(n)) == std::streamsize(n);
@@ -2828,7 +2784,7 @@ operator>>(std::basic_istream<CharT, Traits>& is, basic_string<CharT,Traits,Allo
                s.push_back(c);
          }
       }
-
+     
       // If we have read no characters, then set failbit.
       if (s.size() == 0)
          is.setstate(std::ios_base::failbit);
@@ -2839,7 +2795,7 @@ operator>>(std::basic_istream<CharT, Traits>& is, basic_string<CharT,Traits,Allo
    return is;
 }
 
-template <class CharT, class Traits, class Allocator>
+template <class CharT, class Traits, class Allocator>   
 std::basic_istream<CharT, Traits>&
 getline(std::istream& is, basic_string<CharT,Traits,Allocator>& s,CharT delim)
 {
@@ -2871,7 +2827,7 @@ getline(std::istream& is, basic_string<CharT,Traits,Allocator>& s,CharT delim)
    return is;
 }
 
-template <class CharT, class Traits, class Allocator>
+template <class CharT, class Traits, class Allocator>   
 inline std::basic_istream<CharT, Traits>&
 getline(std::basic_istream<CharT, Traits>& is, basic_string<CharT,Traits,Allocator>& s)
 {
@@ -2886,7 +2842,7 @@ inline std::size_t hash_value(basic_string<Ch, std::char_traits<Ch>, Allocator> 
 
 }}
 
-#ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+/// @cond
 
 namespace boost {
 
@@ -2899,7 +2855,7 @@ struct has_trivial_destructor_after_move<boost::container::basic_string<C, T, Al
 
 }
 
-#endif   //#ifndef BOOST_CONTAINER_DOXYGEN_INVOKED
+/// @endcond
 
 #include <boost/container/detail/config_end.hpp>
 

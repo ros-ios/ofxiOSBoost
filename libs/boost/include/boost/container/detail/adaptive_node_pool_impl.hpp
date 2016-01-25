@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////////
 //
-// (C) Copyright Ion Gaztanaga 2005-2013. Distributed under the Boost
+// (C) Copyright Ion Gaztanaga 2005-2012. Distributed under the Boost
 // Software License, Version 1.0. (See accompanying file
 // LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
@@ -11,14 +11,13 @@
 #ifndef BOOST_CONTAINER_DETAIL_ADAPTIVE_NODE_POOL_IMPL_HPP
 #define BOOST_CONTAINER_DETAIL_ADAPTIVE_NODE_POOL_IMPL_HPP
 
-#if defined(_MSC_VER)
+#if (defined _MSC_VER) && (_MSC_VER >= 1200)
 #  pragma once
 #endif
 
-#include <boost/container/detail/config_begin.hpp>
-#include <boost/container/detail/workaround.hpp>
-
+#include "config_begin.hpp"
 #include <boost/container/container_fwd.hpp>
+#include <boost/container/detail/workaround.hpp>
 #include <boost/container/detail/utilities.hpp>
 #include <boost/intrusive/pointer_traits.hpp>
 #include <boost/intrusive/set.hpp>
@@ -28,7 +27,6 @@
 #include <boost/container/detail/math_functions.hpp>
 #include <boost/container/detail/mpl.hpp>
 #include <boost/container/detail/pool_common.hpp>
-#include <boost/container/throw_exception.hpp>
 #include <boost/assert.hpp>
 #include <boost/detail/no_exceptions_support.hpp>
 #include <cstddef>
@@ -482,7 +480,7 @@ class private_adaptive_node_pool_impl
          free_nodes_iterator itf(nodes.begin()), itbf(itbb);
          size_type splice_node_count = size_type(-1);
          while(itf != ite){
-            void *pElem = container_detail::to_raw_pointer(container_detail::iterator_to_pointer(itf));
+            void *pElem = container_detail::to_raw_pointer(&*itf);
             block_info_t &block_info = *this->priv_block_from_node(pElem);
             BOOST_ASSERT(block_info.free_nodes.size() < m_real_num_node);
             ++splice_node_count;
@@ -639,7 +637,7 @@ class private_adaptive_node_pool_impl
 
       {  //We iterate through the block tree to free the memory
          const_block_iterator it(m_block_container.begin());
-
+   
          if(it != itend){
             for(++it; it != itend; ++it){
                const_block_iterator prev(it);
@@ -782,7 +780,7 @@ class private_adaptive_node_pool_impl
             //In case of error, free memory deallocating all nodes (the new ones allocated
             //in this function plus previously stored nodes in chain).
             this->deallocate_nodes(chain);
-            throw_bad_alloc();
+            throw std::bad_alloc();
          }
          block_info_t &c_info = *new(mem_address)block_info_t();
          mem_address += HdrSize;
@@ -814,7 +812,7 @@ class private_adaptive_node_pool_impl
             //In case of error, free memory deallocating all nodes (the new ones allocated
             //in this function plus previously stored nodes in chain).
             this->deallocate_nodes(chain);
-            throw_bad_alloc();
+            throw std::bad_alloc();
          }
          //First initialize header information on the last subblock
          char *hdr_addr = mem_address + m_real_block_alignment*(m_num_subblocks-1);

@@ -21,11 +21,6 @@
 #include <boost/heap/detail/stable_heap.hpp>
 #include <boost/heap/detail/tree_iterator.hpp>
 
-#ifdef BOOST_HAS_PRAGMA_ONCE
-#pragma once
-#endif
-
-
 #ifndef BOOST_DOXYGEN_INVOKED
 #ifdef BOOST_HEAP_SANITYCHECKS
 #define BOOST_HEAP_ASSERT BOOST_ASSERT
@@ -380,7 +375,7 @@ public:
 
         node_pointer n = allocator_type::allocate(1);
 
-        new(n) node(super_t::make_node(std::forward<Args>(args)...));
+        new(n) node(super_t::make_node(std::forward<T>(args)...));
 
         merge_node(n);
         return handle_type(n);

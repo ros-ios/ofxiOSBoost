@@ -8,23 +8,26 @@
 #if !defined(BOOST_FUSION_DEQUE_26112006_1649)
 #define BOOST_FUSION_DEQUE_26112006_1649
 
-# include <boost/fusion/container/deque/deque_fwd.hpp>
+#include <boost/config.hpp>
 
 ///////////////////////////////////////////////////////////////////////////////
-// Without variadics, we will use the PP version
+// With variadics, we will use the PP version version
 ///////////////////////////////////////////////////////////////////////////////
-#if !defined(BOOST_FUSION_HAS_VARIADIC_DEQUE)
-# include <boost/fusion/container/deque/detail/cpp03/deque.hpp>
+#if defined(BOOST_NO_VARIADIC_TEMPLATES)
+# include <boost/fusion/container/deque/detail/pp_deque.hpp>
 #else
+# if !defined(BOOST_FUSION_HAS_VARIADIC_DEQUE)
+#   define BOOST_FUSION_HAS_VARIADIC_DEQUE
+# endif
 
 ///////////////////////////////////////////////////////////////////////////////
-// C++11 interface
+// C++11 variadic interface
 ///////////////////////////////////////////////////////////////////////////////
 #include <boost/fusion/support/sequence_base.hpp>
 #include <boost/fusion/support/detail/access.hpp>
 #include <boost/fusion/support/is_sequence.hpp>
 #include <boost/fusion/container/deque/detail/keyed_element.hpp>
-#include <boost/fusion/container/deque/detail/deque_keyed_values.hpp>
+#include <boost/fusion/container/deque/detail/variadic_deque_keyed_values.hpp>
 #include <boost/fusion/container/deque/deque_fwd.hpp>
 #include <boost/fusion/container/deque/detail/value_at_impl.hpp>
 #include <boost/fusion/container/deque/detail/at_impl.hpp>
@@ -54,7 +57,6 @@ namespace boost { namespace fusion
         typedef mpl::false_ is_view;
 
         template <typename Sequence>
-        BOOST_FUSION_GPU_ENABLED
         deque(Sequence const&,
             typename enable_if<
                 mpl::and_<
@@ -62,7 +64,6 @@ namespace boost { namespace fusion
                   , result_of::empty<Sequence>>>::type* /*dummy*/ = 0)
         {}
 
-        BOOST_FUSION_GPU_ENABLED
         deque() {}
     };
 
@@ -79,56 +80,47 @@ namespace boost { namespace fusion
         typedef mpl::int_<((size::value == 0) ? 0 : -1)> next_down;
         typedef mpl::false_ is_view;
 
-        BOOST_FUSION_GPU_ENABLED
         deque()
         {}
 
         template <typename ...Elements>
-        BOOST_FUSION_GPU_ENABLED
         deque(deque<Elements...> const& seq)
           : base(seq)
         {}
 
         template <typename ...Elements>
-        BOOST_FUSION_GPU_ENABLED
         deque(deque<Elements...>& seq)
           : base(seq)
         {}
 
-#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
+#if !defined(BOOST_NO_RVALUE_REFERENCES)
         template <typename ...Elements>
-        BOOST_FUSION_GPU_ENABLED
         deque(deque<Elements...>&& seq)
           : base(std::forward<deque<Elements...>>(seq))
         {}
 #endif
 
-        BOOST_FUSION_GPU_ENABLED
         deque(deque const& seq)
           : base(seq)
         {}
 
-#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
-        BOOST_FUSION_GPU_ENABLED
+#if !defined(BOOST_NO_RVALUE_REFERENCES)
         deque(deque&& seq)
           : base(std::forward<deque>(seq))
         {}
 #endif
 
-        BOOST_FUSION_GPU_ENABLED
         explicit deque(Head const& head, Tail const&... tail)
           : base(detail::deque_keyed_values<Head, Tail...>::construct(head, tail...))
         {}
 
         template <typename Head_, typename ...Tail_>
-        BOOST_FUSION_GPU_ENABLED
         explicit deque(Head_ const& head, Tail_ const&... tail)
           : base(detail::deque_keyed_values<Head_, Tail_...>::construct(head, tail...))
         {}
 
-#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
+#if !defined(BOOST_NO_RVALUE_REFERENCES)
         template <typename Head_, typename ...Tail_>
-        BOOST_FUSION_GPU_ENABLED
         explicit deque(Head_&& head, Tail_&&... tail)
           : base(detail::deque_keyed_values<Head, Tail...>
                 ::forward_(std::forward<Head_>(head), std::forward<Tail_>(tail)...))
@@ -136,14 +128,12 @@ namespace boost { namespace fusion
 #endif
 
         template <typename Sequence>
-        BOOST_FUSION_GPU_ENABLED
         explicit deque(Sequence const& seq
           , typename disable_if<is_convertible<Sequence, Head> >::type* /*dummy*/ = 0)
           : base(base::from_iterator(fusion::begin(seq)))
         {}
 
         template <typename ...Elements>
-        BOOST_FUSION_GPU_ENABLED
         deque& operator=(deque<Elements...> const& rhs)
         {
             base::operator=(rhs);
@@ -151,16 +141,14 @@ namespace boost { namespace fusion
         }
 
         template <typename T>
-        BOOST_FUSION_GPU_ENABLED
         deque& operator=(T const& rhs)
         {
             base::operator=(rhs);
             return *this;
         }
 
-#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
+#if !defined(BOOST_NO_RVALUE_REFERENCES)
         template <typename T>
-        BOOST_FUSION_GPU_ENABLED
         deque& operator=(T&& rhs)
         {
             base::operator=(std::forward<T>(rhs));

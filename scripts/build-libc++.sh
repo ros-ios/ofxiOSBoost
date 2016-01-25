@@ -20,6 +20,8 @@
 #===============================================================================
 
 #!/bin/sh
+
+
 here="`dirname \"$0\"`"
 echo "cd-ing to $here"
 cd "$here" || exit 1
@@ -28,12 +30,13 @@ CPPSTD=c++11    #c++89, c++99, c++14
 STDLIB=libc++   # libstdc++
 COMPILER=clang++
 
-BOOST_V1=1.56.0
-BOOST_V2=1_56_0
+BOOST_V1=1.53.0
+BOOST_V2=1_53_0
 
 CURRENTPATH=`pwd`
 LOGDIR="$CURRENTPATH/build/logs/"
 
+BJAM=./b2
 SDKVERSION=`xcrun -sdk iphoneos --show-sdk-version`
 OSX_SDKVERSION=`xcrun -sdk macosx --show-sdk-version`
 DEVELOPER=`xcode-select -print-path`
@@ -62,10 +65,12 @@ case $CURRENTPATH in
           ;;
 esac
 
-: ${BOOST_LIBS:="random regex graph random chrono thread signals filesystem system date_time"}
+: ${BOOST_LIBS:="random regex graph chrono thread signals filesystem system date_time"}
 : ${IPHONE_SDKVERSION:=`xcodebuild -showsdks | grep iphoneos | egrep "[[:digit:]]+\.[[:digit:]]+" -o | tail -1`}
-: ${EXTRA_CPPFLAGS:="-DBOOST_AC_USE_PTHREADS -DBOOST_SP_USE_PTHREADS -std=$CPPSTD -stdlib=$STDLIB"}
-
+: ${EXTRA_CPPFLAGS:="-DBOOST_AC_USE_PTHREADS -DBOOST_SP_USE_PTHREADS -stdlib=$STDLIB"}
+if [ $CPPSTD != "" ]; then
+ EXTRA_CPPFLAGS="$EXTRA_CPPFLAGS -std=$CPPSTD"
+fi
 # The EXTRA_CPPFLAGS definition works around a thread race issue in
 # shared_ptr. I encountered this historically and have not verified that
 # the fix is no longer required. Without using the posix thread primitives
@@ -196,7 +201,7 @@ unpackBoost()
 
 restoreBoost()
 {
-    cp $BOOST_SRC/tools/build/example/user-config.jam-bk $BOOST_SRC/tools/build/example/user-config.jam
+    cp $BOOST_SRC/tools/build/v2/example/user-config.jam-bk $BOOST_SRC/tools/build/v2/example/user-config.jam
 }
 
 #===============================================================================
@@ -205,9 +210,9 @@ updateBoost()
 {
     echo Updating boost into $BOOST_SRC...
 
-    cp $BOOST_SRC/tools/build/example/user-config.jam $BOOST_SRC/tools/build/example/user-config.jam.bk
+    cp $BOOST_SRC/tools/build/v2/example/user-config.jam $BOOST_SRC/tools/build/v2/example/user-config.jam.bk
 
-    cat >> $BOOST_SRC/tools/build/example/user-config.jam <<EOF
+    cat >> $BOOST_SRC/tools/build/v2/example/user-config.jam <<EOF
 using darwin : ${IPHONE_SDKVERSION}~iphone
 : $XCODE_ROOT/Toolchains/XcodeDefault.xctoolchain/usr/bin/$COMPILER -arch armv7 -arch armv7s -arch arm64 -fvisibility=hidden -fvisibility-inlines-hidden $EXTRA_CPPFLAGS
 : <striper> <root>$XCODE_ROOT/Platforms/iPhoneOS.platform/Developer
@@ -260,11 +265,11 @@ buildBoostForIPhoneOS()
     set +e    
     echo "------------------"
     LOG="$LOGDIR/build-iphone-stage.log"
-    echo "Running bjam for iphone-build stage"
+    echo "Running $BJAM for iphone-build stage"
     echo "To see status in realtime check:"
     echo " ${LOG}"
     echo "Please stand by..."
-    ./bjam -j16 --build-dir=iphone-build -sBOOST_BUILD_USER_CONFIG=$BOOST_SRC/tools/build/example/user-config.jam --stagedir=iphone-build/stage --prefix=$PREFIXDIR toolset=darwin architecture=arm target-os=iphone macosx-version=iphone-${IPHONE_SDKVERSION} define=_LITTLE_ENDIAN link=static stage > "${LOG}" 2>&1
+    $BJAM -j16 --build-dir=iphone-build -sBOOST_BUILD_USER_CONFIG=$BOOST_SRC/tools/build/v2/example/user-config.jam --stagedir=iphone-build/stage --prefix=$PREFIXDIR toolset=darwin architecture=arm target-os=iphone macosx-version=iphone-${IPHONE_SDKVERSION} define=_LITTLE_ENDIAN link=static stage > "${LOG}" 2>&1
     if [ $? != 0 ]; then 
         echo "Problem while Building iphone-build stage - Please check ${LOG}"
         exit 1
@@ -274,11 +279,11 @@ buildBoostForIPhoneOS()
 
     echo "------------------"
     LOG="$LOGDIR/build-iphone-install.log"
-    echo "Running bjam for iphone-build install"
+    echo "Running $BJAM for iphone-build install"
     echo "To see status in realtime check:"
     echo " ${LOG}"
     echo "Please stand by..."
-    ./bjam -j16 --build-dir=iphone-build -sBOOST_BUILD_USER_CONFIG=$BOOST_SRC/tools/build/example/user-config.jam --stagedir=iphone-build/stage --prefix=$PREFIXDIR toolset=darwin architecture=arm target-os=iphone macosx-version=iphone-${IPHONE_SDKVERSION} define=_LITTLE_ENDIAN link=static install > "${LOG}" 2>&1
+    $BJAM -j16 --build-dir=iphone-build -sBOOST_BUILD_USER_CONFIG=$BOOST_SRC/tools/build/v2/example/user-config.jam --stagedir=iphone-build/stage --prefix=$PREFIXDIR toolset=darwin architecture=arm target-os=iphone macosx-version=iphone-${IPHONE_SDKVERSION} define=_LITTLE_ENDIAN link=static install > "${LOG}" 2>&1
     if [ $? != 0 ]; then 
         echo "Problem while Building iphone-build install - Please check ${LOG}"
         exit 1
@@ -289,11 +294,11 @@ buildBoostForIPhoneOS()
 
     echo "------------------"
     LOG="$LOGDIR/build-iphone-simulator-build.log"
-    echo "Running bjam for iphone-sim-build "
+    echo "Running $BJAM for iphone-sim-build "
     echo "To see status in realtime check:"
     echo " ${LOG}"
     echo "Please stand by..."
-    ./bjam -j16 --build-dir=iphonesim-build -sBOOST_BUILD_USER_CONFIG=$BOOST_SRC/tools/build/example/user-config.jam --stagedir=iphonesim-build/stage --toolset=darwin-${IPHONE_SDKVERSION}~iphonesim architecture=x86 target-os=iphone macosx-version=iphonesim-${IPHONE_SDKVERSION} link=static stage > "${LOG}" 2>&1
+    $BJAM -j16 --build-dir=iphonesim-build -sBOOST_BUILD_USER_CONFIG=$BOOST_SRC/tools/build/v2/example/user-config.jam --stagedir=iphonesim-build/stage --toolset=darwin-${IPHONE_SDKVERSION}~iphonesim architecture=x86 target-os=iphone macosx-version=iphonesim-${IPHONE_SDKVERSION} link=static stage > "${LOG}" 2>&1
     if [ $? != 0 ]; then 
         echo "Problem while Building iphone-simulator build - Please check ${LOG}"
         exit 1

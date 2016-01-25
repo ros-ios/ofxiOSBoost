@@ -21,11 +21,6 @@
 #include <boost/heap/detail/stable_heap.hpp>
 #include <boost/heap/detail/mutable_heap.hpp>
 
-#ifdef BOOST_HAS_PRAGMA_ONCE
-#pragma once
-#endif
-
-
 #ifndef BOOST_DOXYGEN_INVOKED
 #ifdef BOOST_HEAP_SANITYCHECKS
 #define BOOST_HEAP_ASSERT BOOST_ASSERT
@@ -353,7 +348,9 @@ private:
 
     size_type last_child_index(size_type index) const
     {
+        typedef typename container_type::const_iterator container_iterator;
         const size_t first_index = first_child_index(index);
+
         const size_type last_index = (std::min)(first_index + D - 1, size() - 1);
 
         return last_index;
